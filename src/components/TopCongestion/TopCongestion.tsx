@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 
@@ -11,14 +11,20 @@ interface CongestionItem {
   long: number;
 }
 
-export const TopCongestion = (): JSX.Element => {
+export const TopCongestion = ({
+  date,
+  isPaused,
+}: {
+  date?: string;
+  isPaused?: boolean;
+}): JSX.Element => {
   const [items, setItems] = useState<CongestionItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getTopCongestionList();
+      const { data: apiData } = await api.getTopCongestionList(date);
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         setItems(apiData.sort((a, b) => a.rank - b.rank).slice(0, 10));
@@ -35,9 +41,11 @@ export const TopCongestion = (): JSX.Element => {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isPaused) {
+      const interval = setInterval(fetchData, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [date, isPaused]);
 
   const getMedalColor = (rank: number) => {
     switch (rank) {
@@ -68,8 +76,18 @@ export const TopCongestion = (): JSX.Element => {
   return (
     <div className="bg-[#1a1b3d] rounded-xl p-6 border border-[#2d2e5f]">
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <svg
+          className="w-5 h-5 text-red-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          />
         </svg>
         Top 10 Most Congested Roads
       </h3>
@@ -77,11 +95,16 @@ export const TopCongestion = (): JSX.Element => {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 bg-[#0f1028] rounded-lg animate-pulse"></div>
+            <div
+              key={i}
+              className="h-12 bg-[#0f1028] rounded-lg animate-pulse"
+            ></div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">No congestion data available</div>
+        <div className="text-center py-8 text-gray-400">
+          No congestion data available
+        </div>
       ) : (
         <div className="space-y-2">
           {items.map((item, idx) => (
@@ -91,19 +114,29 @@ export const TopCongestion = (): JSX.Element => {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className={`text-2xl ${getMedalColor(item.rank)} w-10 h-10 flex items-center justify-center rounded-full font-bold`}>
+                  <div
+                    className={`text-2xl ${getMedalColor(
+                      item.rank
+                    )} w-10 h-10 flex items-center justify-center rounded-full font-bold`}
+                  >
                     {getMedalEmoji(item.rank)}
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-white text-sm">{item.street_name}</div>
+                    <div className="font-medium text-white text-sm">
+                      {item.street_name}
+                    </div>
                     <div className="text-xs text-gray-500">
                       {item.lat.toFixed(2)}, {item.long.toFixed(2)}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-red-400">{item.velocity.toFixed(1)}</div>
-                  <div className="text-xs text-gray-400">km/h @ {item.hour}:00</div>
+                  <div className="text-xl font-bold text-red-400">
+                    {item.velocity.toFixed(1)}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    km/h @ {item.hour}:00
+                  </div>
                 </div>
               </div>
             </div>

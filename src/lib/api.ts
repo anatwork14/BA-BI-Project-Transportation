@@ -35,6 +35,7 @@ export const api = {
       });
       if (!response.ok) throw new Error("API error");
       const data = await response.json();
+      console.log("HEAT MAP:", data);
       return { data, error: null };
     } catch (err) {
       return { data: null, error: String(err) };

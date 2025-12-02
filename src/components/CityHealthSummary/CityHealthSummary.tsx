@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 
 interface CityHealth {
   hour: number;
@@ -10,37 +9,63 @@ interface CityHealth {
   congestion_level: string;
 }
 
-export const CityHealthSummary = (): JSX.Element => {
+export const CityHealthSummary = ({
+  date,
+  isPaused,
+  selectedHour = new Date().getHours(),
+}: {
+  date?: string;
+  isPaused?: boolean;
+  selectedHour?: number;
+}): JSX.Element => {
   const [health, setHealth] = useState<CityHealth | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
-      const { data } = await api.getCityHealthSummary();
+      // Fetch heatmap data for the selected hour to calculate metrics
+      const { data: heatmapData } = await api.getHeatmapData(selectedHour);
 
-      if (data && data.length > 0) {
-        const latestHour = data.reduce((prev, curr) =>
-          curr.hour > prev.hour ? curr : prev
+      if (heatmapData && heatmapData.length > 0) {
+        // Calculate metrics from heatmap data
+        const totalSpeed = heatmapData.reduce(
+          (sum, point) => sum + point.speed,
+          0
         );
-        setHealth(latestHour);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("city_health_summary")
-          .select("*")
-          .order("hour", { ascending: false })
-          .limit(1)
-          .single();
+        const avgSpeed = totalSpeed / heatmapData.length;
+        const jammedRoads = heatmapData.filter(
+          (point) => point.speed < 20
+        ).length; // Assuming < 20km/h is jammed
 
-        if (supabaseData) setHealth(supabaseData);
+        let congestionLevel = "GOOD";
+        if (avgSpeed < 20) congestionLevel = "CRITICAL";
+        else if (avgSpeed < 35) congestionLevel = "HIGH";
+        else if (avgSpeed < 50) congestionLevel = "NORMAL";
+
+        setHealth({
+          hour: selectedHour,
+          city_avg_speed: avgSpeed,
+          total_active_roads: heatmapData.length,
+          jammed_roads_count: jammedRoads,
+          congestion_level: congestionLevel,
+        });
+      } else {
+        // Fallback to existing logic if no heatmap data (or keep previous data)
+        const { data } = await api.getCityHealthSummary(date);
+        if (data && data.length > 0) {
+          const latestHour = data.reduce((prev, curr) =>
+            curr.hour > prev.hour ? curr : prev
+          );
+          setHealth(latestHour);
+        }
       }
-      setLoading(false);
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isPaused) {
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [date, isPaused, selectedHour]);
 
   const getCongestionColor = (level: string) => {
     switch (level) {
@@ -49,9 +74,9 @@ export const CityHealthSummary = (): JSX.Element => {
       case "HIGH":
         return "bg-orange-500/20 border-orange-500/30 text-orange-400";
       case "NORMAL":
-        return "bg-green-500/20 border-green-500/30 text-green-400";
+        return "bg-emerald-500/20 border-emerald-500/30 text-emerald-400";
       default:
-        return "bg-gray-500/20 border-gray-500/30 text-gray-400";
+        return "bg-slate-500/20 border-slate-500/30 text-slate-400";
     }
   };
 
@@ -61,14 +86,14 @@ export const CityHealthSummary = (): JSX.Element => {
       value: health?.city_avg_speed.toFixed(1) || "0",
       unit: "km/h",
       icon: "🚗",
-      color: "text-cyan-400",
+      color: "text-sky-400",
     },
     {
       label: "Active Roads",
       value: health?.total_active_roads.toLocaleString() || "0",
       unit: "",
       icon: "🛣️",
-      color: "text-blue-400",
+      color: "text-indigo-400",
     },
     {
       label: "Jammed Roads",
@@ -85,29 +110,36 @@ export const CityHealthSummary = (): JSX.Element => {
         {metrics.map((metric, idx) => (
           <div
             key={idx}
-            className="bg-[#1a1b3d] rounded-xl p-6 border border-[#2d2e5f] hover:border-[#3d3e7f] transition-all"
+            className="bg-[#1e293b] rounded-xl p-6 border border-[#334155] hover:border-[#475569] transition-all"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-3xl">{metric.icon}</span>
-              <div className="text-sm text-gray-400">{metric.label}</div>
+              <div className="text-sm text-slate-400">{metric.label}</div>
             </div>
             <div className={`text-3xl font-bold ${metric.color}`}>
               {metric.value}
-              {metric.unit && <span className="text-lg ml-1">{metric.unit}</span>}
+              {metric.unit && (
+                <span className="text-lg ml-1">{metric.unit}</span>
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {health && (
-        <div className={`rounded-xl p-6 border ${getCongestionColor(health.congestion_level)}`}>
+        <div
+          className={`rounded-xl p-6 border ${getCongestionColor(
+            health.congestion_level
+          )}`}
+        >
           <div className="text-center">
-            <div className="text-sm text-gray-300 mb-2">Congestion Status</div>
+            <div className="text-sm text-slate-300 mb-2">Congestion Status</div>
             <div className="text-4xl font-bold uppercase tracking-wider">
               {health.congestion_level}
             </div>
-            <div className="text-xs text-gray-400 mt-2">
-              Hour {health.hour}:00 - {health.jammed_roads_count} roads in heavy traffic
+            <div className="text-xs text-slate-400 mt-2">
+              Hour {health.hour}:00 - {health.jammed_roads_count} roads in heavy
+              traffic
             </div>
           </div>
         </div>

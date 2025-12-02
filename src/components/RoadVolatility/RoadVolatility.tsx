@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 
@@ -9,14 +9,20 @@ interface VolatilityData {
   reliability_status: string;
 }
 
-export const RoadVolatility = (): JSX.Element => {
+export const RoadVolatility = ({
+  date,
+  isPaused,
+}: {
+  date?: string;
+  isPaused?: boolean;
+}): JSX.Element => {
   const [data, setData] = useState<VolatilityData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getRoadVolatility();
+      const { data: apiData } = await api.getRoadVolatility(date);
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         setData(apiData.sort((a, b) => b.std_dev - a.std_dev));
@@ -32,9 +38,11 @@ export const RoadVolatility = (): JSX.Element => {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isPaused) {
+      const interval = setInterval(fetchData, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [date, isPaused]);
 
   const getReliabilityColor = (status: string) => {
     if (status.includes("Reliable") && status.includes("fast")) {
@@ -52,8 +60,18 @@ export const RoadVolatility = (): JSX.Element => {
   return (
     <div className="bg-[#1a1b3d] rounded-xl p-6 border border-[#2d2e5f]">
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        <svg
+          className="w-5 h-5 text-purple-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
         </svg>
         Road Reliability Index
       </h3>
@@ -61,11 +79,16 @@ export const RoadVolatility = (): JSX.Element => {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-[#0f1028] rounded-lg animate-pulse"></div>
+            <div
+              key={i}
+              className="h-16 bg-[#0f1028] rounded-lg animate-pulse"
+            ></div>
           ))}
         </div>
       ) : data.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">No volatility data available</div>
+        <div className="text-center py-8 text-gray-400">
+          No volatility data available
+        </div>
       ) : (
         <div className="space-y-2">
           {data.map((item, idx) => {
@@ -75,18 +98,26 @@ export const RoadVolatility = (): JSX.Element => {
             return (
               <div key={idx} className={`p-4 rounded-lg border ${colorClass}`}>
                 <div className="flex items-start justify-between mb-2">
-                  <div className="font-semibold text-white">{item.street_name}</div>
-                  <div className="text-xs font-medium">{item.reliability_status}</div>
+                  <div className="font-semibold text-white">
+                    {item.street_name}
+                  </div>
+                  <div className="text-xs font-medium">
+                    {item.reliability_status}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 mb-2 text-xs">
                   <div>
                     <span className="text-gray-400">Avg Speed: </span>
-                    <span className="font-medium">{item.avg.toFixed(1)} km/h</span>
+                    <span className="font-medium">
+                      {item.avg.toFixed(1)} km/h
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-400">Std Dev: </span>
-                    <span className="font-medium">{item.std_dev.toFixed(1)}</span>
+                    <span className="font-medium">
+                      {item.std_dev.toFixed(1)}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-400">Volatility: </span>
