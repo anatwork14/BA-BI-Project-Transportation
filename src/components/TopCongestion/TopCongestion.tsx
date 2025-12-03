@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 
 interface CongestionItem {
   street_name: string;
@@ -11,41 +10,36 @@ interface CongestionItem {
   long: number;
 }
 
-export const TopCongestion = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const TopCongestion = (): JSX.Element => {
   const [items, setItems] = useState<CongestionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedHour, setSelectedHour] = useState(new Date().getHours());
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getTopCongestionList(date);
+      const { data: apiData } = await api.getTopCongestionList(selectedHour);
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-        setItems(apiData.sort((a, b) => a.rank - b.rank).slice(0, 10));
+        // Deduplicate based on street_name and hour
+        const uniqueItemsMap = new Map<string, CongestionItem>();
+        apiData.forEach((item) => {
+          const key = `${item.street_name}-${item.hour}`;
+          if (!uniqueItemsMap.has(key)) {
+            uniqueItemsMap.set(key, item);
+          }
+        });
+        const uniqueItems = Array.from(uniqueItemsMap.values());
+        setItems(uniqueItems.sort((a, b) => a.rank - b.rank).slice(0, 10));
       } else {
-        const { data: supabaseData } = await supabase
-          .from("top_congestion_list")
-          .select("*")
-          .order("rank", { ascending: true })
-          .limit(10);
-
-        if (supabaseData) setItems(supabaseData);
+        setItems([]);
       }
       setLoading(false);
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+    
+  }, [selectedHour]);
 
   const getMedalColor = (rank: number) => {
     switch (rank) {
@@ -91,6 +85,32 @@ export const TopCongestion = ({
         </svg>
         Top 10 Most Congested Roads
       </h3>
+
+      <div className="flex items-center gap-4 mb-4 bg-[#0f172a] p-2 rounded-lg border border-[#2d2e5f] w-fit">
+        <div className="flex items-center gap-2">
+          <label htmlFor="tc-hour-select" className="text-sm text-slate-400">
+            Hour:
+          </label>
+          <select
+            id="tc-hour-select"
+            value={selectedHour}
+            onChange={(e) => setSelectedHour(Number(e.target.value))}
+            className="bg-[#1a1b3d] text-white text-sm border border-[#2d2e5f] rounded px-2 py-1 focus:outline-none focus:border-red-400"
+          >
+            {Array.from({ length: 24 }, (_, i) => (
+              <option key={i} value={i}>
+                {i.toString().padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => setSelectedHour(new Date().getHours())}
+          className="text-xs text-red-400 hover:text-red-300 underline whitespace-nowrap"
+        >
+          Current Hour
+        </button>
+      </div>
 
       {loading ? (
         <div className="space-y-2">

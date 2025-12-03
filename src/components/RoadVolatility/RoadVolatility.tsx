@@ -1,6 +1,7 @@
+"use client"
+
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 
 interface VolatilityData {
   street_name: string;
@@ -9,40 +10,25 @@ interface VolatilityData {
   reliability_status: string;
 }
 
-export const RoadVolatility = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const RoadVolatility = (): JSX.Element => {
   const [data, setData] = useState<VolatilityData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getRoadVolatility(date);
+      const { data: apiData } = await api.getRoadVolatility();
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         setData(apiData.sort((a, b) => b.std_dev - a.std_dev));
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("road_volatility")
-          .select("*")
-          .order("std_dev", { ascending: false });
-
-        if (supabaseData) setData(supabaseData);
       }
       setLoading(false);
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+    
+  }, []);
 
   const getReliabilityColor = (status: string) => {
     if (status.includes("Reliable") && status.includes("fast")) {
@@ -76,6 +62,16 @@ export const RoadVolatility = ({
         Road Reliability Index
       </h3>
 
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search street..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-[#0f1028] text-white text-sm border border-[#2d2e5f] rounded px-3 py-2 focus:outline-none focus:border-purple-400 placeholder-slate-500"
+        />
+      </div>
+
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -91,7 +87,14 @@ export const RoadVolatility = ({
         </div>
       ) : (
         <div className="space-y-2">
-          {data.map((item, idx) => {
+          {data
+            .filter((item) =>
+              (item.street_name || "")
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase())
+            )
+            .slice(0, 10)
+            .map((item, idx) => {
             const colorClass = getReliabilityColor(item.reliability_status);
             const maxStdDev = Math.max(...data.map((d) => d.std_dev), 1);
 
@@ -110,19 +113,27 @@ export const RoadVolatility = ({
                   <div>
                     <span className="text-gray-400">Avg Speed: </span>
                     <span className="font-medium">
-                      {item.avg.toFixed(1)} km/h
+                      {typeof item.avg === "number"
+                        ? `${item.avg.toFixed(1)} km/h`
+                        : "N/A"}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400">Std Dev: </span>
                     <span className="font-medium">
-                      {item.std_dev.toFixed(1)}
+                      {typeof item.std_dev === "number"
+                        ? item.std_dev.toFixed(1)
+                        : "N/A"}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400">Volatility: </span>
                     <span className="font-medium">
-                      {((item.std_dev / item.avg) * 100).toFixed(0)}%
+                      {typeof item.std_dev === "number" &&
+                      typeof item.avg === "number" &&
+                      item.avg !== 0
+                        ? `${((item.std_dev / item.avg) * 100).toFixed(0)}%`
+                        : "N/A"}
                     </span>
                   </div>
                 </div>

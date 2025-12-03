@@ -10,12 +10,8 @@ interface CityHealth {
 }
 
 export const CityHealthSummary = ({
-  date,
-  isPaused,
   selectedHour = new Date().getHours(),
 }: {
-  date?: string;
-  isPaused?: boolean;
   selectedHour?: number;
 }): JSX.Element => {
   const [health, setHealth] = useState<CityHealth | null>(null);
@@ -23,7 +19,7 @@ export const CityHealthSummary = ({
   useEffect(() => {
     const fetchData = async () => {
       // Fetch heatmap data for the selected hour to calculate metrics
-      const { data: heatmapData } = await api.getHeatmapData(selectedHour);
+      const { data: heatmapData } = await api.getHeatmapData(selectedHour > 16 ? 16 : selectedHour);
 
       if (heatmapData && heatmapData.length > 0) {
         // Calculate metrics from heatmap data
@@ -50,7 +46,7 @@ export const CityHealthSummary = ({
         });
       } else {
         // Fallback to existing logic if no heatmap data (or keep previous data)
-        const { data } = await api.getCityHealthSummary(date);
+        const { data } = await api.getCityHealthSummary();
         if (data && data.length > 0) {
           const latestHour = data.reduce((prev, curr) =>
             curr.hour > prev.hour ? curr : prev
@@ -61,11 +57,7 @@ export const CityHealthSummary = ({
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused, selectedHour]);
+  }, [selectedHour]);
 
   const getCongestionColor = (level: string) => {
     switch (level) {
@@ -106,43 +98,59 @@ export const CityHealthSummary = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {metrics.map((metric, idx) => (
-          <div
-            key={idx}
-            className="bg-[#1e293b] rounded-xl p-6 border border-[#334155] hover:border-[#475569] transition-all"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-3xl">{metric.icon}</span>
-              <div className="text-sm text-slate-400">{metric.label}</div>
-            </div>
-            <div className={`text-3xl font-bold ${metric.color}`}>
-              {metric.value}
-              {metric.unit && (
-                <span className="text-lg ml-1">{metric.unit}</span>
-              )}
-            </div>
+      {!health ? (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-32 bg-[#1e293b] rounded-xl border border-[#334155] animate-pulse"
+              ></div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {health && (
-        <div
-          className={`rounded-xl p-6 border ${getCongestionColor(
-            health.congestion_level
-          )}`}
-        >
-          <div className="text-center">
-            <div className="text-sm text-slate-300 mb-2">Congestion Status</div>
-            <div className="text-4xl font-bold uppercase tracking-wider">
-              {health.congestion_level}
-            </div>
-            <div className="text-xs text-slate-400 mt-2">
-              Hour {health.hour}:00 - {health.jammed_roads_count} roads in heavy
-              traffic
-            </div>
-          </div>
+          <div className="h-40 bg-[#1e293b] rounded-xl border border-[#334155] animate-pulse"></div>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {metrics.map((metric, idx) => (
+              <div
+                key={idx}
+                className="bg-[#1e293b] rounded-xl p-6 border border-[#334155] hover:border-[#475569] transition-all"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-3xl">{metric.icon}</span>
+                  <div className="text-sm text-slate-400">{metric.label}</div>
+                </div>
+                <div className={`text-3xl font-bold ${metric.color}`}>
+                  {metric.value}
+                  {metric.unit && (
+                    <span className="text-lg ml-1">{metric.unit}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className={`rounded-xl p-6 border ${getCongestionColor(
+              health.congestion_level
+            )}`}
+          >
+            <div className="text-center">
+              <div className="text-sm text-slate-300 mb-2">
+                Congestion Status
+              </div>
+              <div className="text-4xl font-bold uppercase tracking-wider">
+                {health.congestion_level}
+              </div>
+              <div className="text-xs text-slate-400 mt-2">
+                Hour {health.hour}:00 - {health.jammed_roads_count} roads in
+                heavy traffic
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

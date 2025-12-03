@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 import { MapContainer, TileLayer, Circle, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -12,14 +11,10 @@ interface HeatmapPoint {
 }
 
 export const HeatmapVisualization = ({
-  date,
-  isPaused,
   selectedHour = new Date().getHours(),
   setSelectedHour,
 }: {
-  date?: string;
-  isPaused?: boolean;
-  selectedHour?: number;
+    selectedHour?: number;
   setSelectedHour?: (hour: number) => void;
 }): JSX.Element => {
   const [points, setPoints] = useState<HeatmapPoint[]>([]);
@@ -28,28 +23,16 @@ export const HeatmapVisualization = ({
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getHeatmapData(selectedHour);
+      const { data: apiData } = await api.getHeatmapData(selectedHour > 16 ? 16: selectedHour);
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         setPoints(apiData);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("heatmap_data")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50);
-
-        if (supabaseData) setPoints(supabaseData);
       }
       setLoading(false);
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused, selectedHour]);
+  }, [selectedHour]);
 
   const getIntensityColor = (intensity: number) => {
     if (intensity > 15) return "#ef4444"; // red-500
@@ -85,8 +68,8 @@ export const HeatmapVisualization = ({
           <span className="text-xs text-slate-400">Time:</span>
           <input
             type="range"
-            min="0"
-            max="23"
+            min="6"
+            max="18"
             value={selectedHour}
             onChange={(e) => setSelectedHour?.(parseInt(e.target.value))}
             className="w-32 accent-indigo-500"

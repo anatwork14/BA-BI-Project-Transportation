@@ -1,23 +1,16 @@
-const API_BASE_URL = "https://ok-442068653515.us-central1.run.app";
+const API_BASE_URL = "http://localhost:8000";
 
 interface ApiResponse<T> {
   data: T | null;
   error: string | null;
 }
 
-const fallbackToSupabase = async (supabaseQuery: Promise<any>) => {
-  try {
-    return await supabaseQuery;
-  } catch (err) {
-    console.error("API fallback to Supabase:", err);
-    return null;
-  }
-};
 
 export const api = {
-  async getAvgSpeedKpi(): Promise<ApiResponse<any[]>> {
+  async getAvgSpeedKpi(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/avg_speed_kpi`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/avg_speed_kpi?hour=${hour}` : `${API_BASE_URL}/avg_speed_kpi`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -28,9 +21,10 @@ export const api = {
     }
   },
 
-  async getHeatmapData(): Promise<ApiResponse<any[]>> {
+  async getHeatmapData(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/heatmap_data`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/heatmap_data?hour=${hour}` : `${API_BASE_URL}/heatmap_data`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -42,9 +36,10 @@ export const api = {
     }
   },
 
-  async getPeakAnalysis(): Promise<ApiResponse<any[]>> {
+  async getPeakAnalysis(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/peak_analysis`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/peak_analysis?hour=${hour}` : `${API_BASE_URL}/peak_analysis`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -55,9 +50,10 @@ export const api = {
     }
   },
 
-  async getTrafficForecast(): Promise<ApiResponse<any[]>> {
+  async getTrafficForecast(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/traffic_forecast`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/traffic_forecast?hour=${hour}` : `${API_BASE_URL}/traffic_forecast`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -68,9 +64,10 @@ export const api = {
     }
   },
 
-  async getGreenRoutes(): Promise<ApiResponse<any[]>> {
+  async getGreenRoutes(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/green_routes`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/green_routes?hour=${hour}` : `${API_BASE_URL}/green_routes`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -81,9 +78,10 @@ export const api = {
     }
   },
 
-  async getTrafficAnomalies(): Promise<ApiResponse<any[]>> {
+  async getTrafficAnomalies(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/traffic_anomalies`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/traffic_anomalies?hour=${hour}` : `${API_BASE_URL}/traffic_anomalies`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -94,9 +92,10 @@ export const api = {
     }
   },
 
-  async getCityHealthSummary(): Promise<ApiResponse<any[]>> {
+  async getCityHealthSummary(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/city_health_summary`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/city_health_summary?hour=${hour}` : `${API_BASE_URL}/city_health_summary`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -107,9 +106,10 @@ export const api = {
     }
   },
 
-  async getTopCongestionList(): Promise<ApiResponse<any[]>> {
+  async getTopCongestionList(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/top_congestion_list`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/top_congestion_list?hour=${hour}` : `${API_BASE_URL}/top_congestion_list`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -120,9 +120,10 @@ export const api = {
     }
   },
 
-  async getRoadVolatility(): Promise<ApiResponse<any[]>> {
+  async getRoadVolatility(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/road_volatility`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/road_volatility?hour=${hour}` : `${API_BASE_URL}/road_volatility`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -133,9 +134,10 @@ export const api = {
     }
   },
 
-  async getWeekendVsWeekday(): Promise<ApiResponse<any[]>> {
+  async getWeekendVsWeekday(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/weekend_vs_weekday`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/weekend_vs_weekday?hour=${hour}` : `${API_BASE_URL}/weekend_vs_weekday`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");
@@ -146,9 +148,10 @@ export const api = {
     }
   },
 
-  async getEfficiencyLoss(): Promise<ApiResponse<any[]>> {
+  async getEfficiencyLoss(hour?: number): Promise<ApiResponse<any[]>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/efficiency_loss`, {
+      const url = hour !== undefined ? `${API_BASE_URL}/efficiency_loss?hour=${hour}` : `${API_BASE_URL}/efficiency_loss`;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error("API error");

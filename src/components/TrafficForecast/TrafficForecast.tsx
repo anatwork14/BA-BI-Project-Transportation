@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 
 interface ForecastData {
   street_name: string;
@@ -9,46 +8,37 @@ interface ForecastData {
   predicted_speed_next_hour: number;
 }
 
-export const TrafficForecast = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const TrafficForecast = (): JSX.Element => {
   const [forecasts, setForecasts] = useState<ForecastData[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
     "All" | "Congested" | "Moderate" | "Clear"
   >("All");
   const [streetFilter, setStreetFilter] = useState<string>("");
+  const [limit, setLimit] = useState(10);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getTrafficForecast(date);
+      const { data: apiData } = await api.getTrafficForecast();
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         setForecasts(apiData);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("traffic_forecast")
-          .select("*")
-          .order("hour", { ascending: true });
-
-        if (supabaseData) setForecasts(supabaseData);
       }
       setLoading(false);
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+    
+  }, []);
 
   const getDangerLevel = (current: number, predicted: number) => {
+    if (!current || current === 0)
+      return {
+        level: "Unknown",
+        color: "bg-slate-500/20 border-slate-500/30 text-slate-400",
+        status: "Clear",
+      };
     const drop = ((current - predicted) / current) * 100;
     if (drop > 50)
       return {
@@ -76,6 +66,19 @@ export const TrafficForecast = ({
   };
 
   const filteredForecasts = forecasts.filter((forecast) => {
+    const currentSpeed = Number(forecast.velocity) || 0;
+    const predictedSpeed = Number(forecast.predicted_speed_next_hour) || 0;
+
+    // Filter out outliers
+    if (currentSpeed > 150) return false;
+
+    if (currentSpeed > 0) {
+      const changePercent = Math.abs(
+        ((predictedSpeed - currentSpeed) / currentSpeed) * 100
+      );
+      if (changePercent > 80) return false;
+    }
+
     const danger = getDangerLevel(
       forecast.velocity,
       forecast.predicted_speed_next_hour
@@ -93,7 +96,8 @@ export const TrafficForecast = ({
     // Street Filter
     if (
       streetFilter &&
-      !forecast.street_name.toLowerCase().includes(streetFilter.toLowerCase())
+      (!forecast.street_name ||
+        !forecast.street_name.toLowerCase().includes(streetFilter.toLowerCase()))
     ) {
       return false;
     }
@@ -121,7 +125,23 @@ export const TrafficForecast = ({
           Traffic Forecast
         </h3>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-[#0f172a] p-2 rounded-lg border border-[#334155]">
+            <label htmlFor="tf-limit-select" className="text-sm text-slate-400">
+              Show:
+            </label>
+            <select
+              id="tf-limit-select"
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="bg-[#1e293b] text-white text-sm border border-[#334155] rounded px-2 py-1 focus:outline-none focus:border-sky-400"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -137,7 +157,7 @@ export const TrafficForecast = ({
             placeholder="Search street..."
             value={streetFilter}
             onChange={(e) => setStreetFilter(e.target.value)}
-            className="flex-1 bg-[#0f172a] text-white text-sm border border-[#334155] rounded px-3 py-1 focus:outline-none focus:border-sky-400"
+            className="flex-1 bg-[#0f172a] text-white text-sm border border-[#334155] rounded px-3 py-1 focus:outline-none focus:border-sky-400 min-w-[150px]"
           />
         </div>
       </div>
@@ -157,16 +177,16 @@ export const TrafficForecast = ({
         </div>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-          {filteredForecasts.map((forecast, idx) => {
-            const danger = getDangerLevel(
-              forecast.velocity,
-              forecast.predicted_speed_next_hour
-            );
-            const change =
-              forecast.predicted_speed_next_hour - forecast.velocity;
-            const changePercent = ((change / forecast.velocity) * 100).toFixed(
-              1
-            );
+          {filteredForecasts.slice(0, limit).map((forecast, idx) => {
+            const currentSpeed = Number(forecast.velocity) || 0;
+            const predictedSpeed = Number(forecast.predicted_speed_next_hour) || 0;
+
+            const danger = getDangerLevel(currentSpeed, predictedSpeed);
+            const change = predictedSpeed - currentSpeed;
+            const changePercent =
+              currentSpeed !== 0
+                ? ((change / currentSpeed) * 100).toFixed(1)
+                : "0.0";
 
             return (
               <div
@@ -186,7 +206,7 @@ export const TrafficForecast = ({
                             .split(" ")[2]
                             .replace("text-", "text-")}`}
                         >
-                          {forecast.velocity.toFixed(1)} km/h
+                          {currentSpeed.toFixed(1)} km/h
                         </span>
                       </div>
                       <div>
@@ -196,7 +216,7 @@ export const TrafficForecast = ({
                             .split(" ")[2]
                             .replace("text-", "text-")}`}
                         >
-                          {forecast.predicted_speed_next_hour.toFixed(1)} km/h
+                          {predictedSpeed.toFixed(1)} km/h
                         </span>
                       </div>
                     </div>

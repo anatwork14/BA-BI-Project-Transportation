@@ -10,8 +10,16 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
-
+// Fix for Recharts type compatibility issues with React 18
+// We cast these components to 'any' to avoid the "cannot be used as a JSX component" error
+const SafeResponsiveContainer = ResponsiveContainer as any;
+const SafeLineChart = LineChart as any;
+const SafeLine = Line as any;
+const SafeXAxis = XAxis as any;
+const SafeYAxis = YAxis as any;
+const SafeCartesianGrid = CartesianGrid as any;
+const SafeTooltip = Tooltip as any;
+const SafeLegend = Legend as any;
 interface SpeedData {
   street_name: string;
   hour: number;
@@ -19,34 +27,18 @@ interface SpeedData {
   max_speed_observed: number;
 }
 
-export const SpeedTrends = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const SpeedTrends = (): JSX.Element => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getAvgSpeedKpi(date);
+      const { data: apiData } = await api.getAvgSpeedKpi();
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         const grouped = groupByStreet(apiData);
         setData(grouped);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("avg_speed_kpi")
-          .select("*")
-          .order("hour", { ascending: true });
-
-        if (supabaseData && supabaseData.length > 0) {
-          const grouped = groupByStreet(supabaseData);
-          setData(grouped);
-        }
       }
       setLoading(false);
     };
@@ -70,15 +62,13 @@ export const SpeedTrends = ({
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+    
+  }, []);
 
   const colors = ["#38bdf8", "#818cf8", "#f472b6", "#34d399"];
 
-  const [selectedStreet, setSelectedStreet] = useState<string>("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [limit, setLimit] = useState(5);
 
   // Extract unique street names
   const allStreets = Array.from(
@@ -88,6 +78,12 @@ export const SpeedTrends = ({
         : []
     )
   );
+
+  const filteredStreets = allStreets
+    .filter((street) =>
+      street.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .slice(0, limit);
 
   return (
     <div className="bg-[#1e293b] rounded-xl p-6 border border-[#334155]">
@@ -109,23 +105,48 @@ export const SpeedTrends = ({
           Average Speed Trends Per Road
         </h3>
 
-        <div className="flex items-center gap-2 bg-[#0f172a] p-2 rounded-lg border border-[#334155]">
-          <label htmlFor="street-select" className="text-sm text-slate-400">
-            Street:
-          </label>
-          <select
-            id="street-select"
-            value={selectedStreet}
-            onChange={(e) => setSelectedStreet(e.target.value)}
-            className="bg-[#1e293b] text-white text-sm border border-[#334155] rounded px-2 py-1 focus:outline-none focus:border-sky-400"
-          >
-            <option value="All">All Streets</option>
-            {allStreets.map((street) => (
-              <option key={street} value={street}>
-                {street}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-[#0f172a] p-2 rounded-lg border border-[#334155]">
+            <svg
+              className="w-4 h-4 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search streets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent text-white text-sm focus:outline-none w-32 md:w-48 placeholder-slate-500"
+            />
+          </div>
+
+          {/* Limit Selector */}
+          <div className="flex items-center gap-2 bg-[#0f172a] p-2 rounded-lg border border-[#334155]">
+            <label htmlFor="limit-select" className="text-sm text-slate-400">
+              Show:
+            </label>
+            <select
+              id="limit-select"
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="bg-[#1e293b] text-white text-sm border border-[#334155] rounded px-2 py-1 focus:outline-none focus:border-sky-400"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -138,11 +159,11 @@ export const SpeedTrends = ({
           No data available
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="hour" stroke="#94a3b8" />
-            <YAxis
+        <SafeResponsiveContainer width="100%" height={350}>
+          <SafeLineChart data={data}>
+            <SafeCartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <SafeXAxis dataKey="hour" stroke="#94a3b8" />
+            <SafeYAxis
               stroke="#94a3b8"
               label={{
                 value: "Speed (km/h)",
@@ -150,7 +171,7 @@ export const SpeedTrends = ({
                 position: "insideLeft",
               }}
             />
-            <Tooltip
+            <SafeTooltip
               contentStyle={{
                 backgroundColor: "#0f172a",
                 border: "1px solid #334155",
@@ -158,26 +179,20 @@ export const SpeedTrends = ({
               }}
               labelStyle={{ color: "#cbd5e1" }}
             />
-            <Legend />
-            {Object.keys(data[0] || {})
-              .filter((key) => key !== "hour")
-              .filter(
-                (street) =>
-                  selectedStreet === "All" || street === selectedStreet
-              )
-              .map((street, idx) => (
-                <Line
+            <SafeLegend />
+            {filteredStreets.map((street, idx) => (
+                <SafeLine
                   key={street}
                   type="monotone"
                   dataKey={street}
                   stroke={colors[idx % colors.length]}
-                  strokeWidth={selectedStreet === street ? 4 : 2}
+                  strokeWidth={2}
                   dot={false}
                   name={street}
                 />
               ))}
-          </LineChart>
-        </ResponsiveContainer>
+          </SafeLineChart>
+        </SafeResponsiveContainer>
       )}
     </div>
   );

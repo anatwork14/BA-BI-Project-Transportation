@@ -10,7 +10,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
+
+// Fix for Recharts type compatibility issues with React 18
+const SafeResponsiveContainer = ResponsiveContainer as any;
+const SafeBarChart = BarChart as any;
+const SafeBar = Bar as any;
+const SafeXAxis = XAxis as any;
+const SafeYAxis = YAxis as any;
+const SafeCartesianGrid = CartesianGrid as any;
+const SafeTooltip = Tooltip as any;
+const SafeLegend = Legend as any;
+
+
 
 interface PeakData {
   street_name: string;
@@ -18,33 +29,18 @@ interface PeakData {
   period_avg_speed: number;
 }
 
-export const PeakAnalysis = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const PeakAnalysis = (): JSX.Element => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getPeakAnalysis(date);
+      const { data: apiData } = await api.getPeakAnalysis();
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
         const grouped = groupByStreet(apiData);
         setData(grouped);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("peak_analysis")
-          .select("*");
-
-        if (supabaseData && supabaseData.length > 0) {
-          const grouped = groupByStreet(supabaseData);
-          setData(grouped);
-        }
       }
       setLoading(false);
     };
@@ -56,11 +52,12 @@ export const PeakAnalysis = ({
         peakData
           .filter((d) => d.street_name === street)
           .forEach((d) => {
-            if (d.period === "Morning Peak")
+            const period = d.period.trim();
+            if (period === "Morning Peak")
               streetData.morning = d.period_avg_speed;
-            if (d.period === "Evening Peak")
+            else if (period === "Evening Peak")
               streetData.evening = d.period_avg_speed;
-            if (d.period === "Off-Peak")
+            else if (period === "Off-Peak")
               streetData.offPeak = d.period_avg_speed;
           });
         return streetData;
@@ -68,11 +65,8 @@ export const PeakAnalysis = ({
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+   
+  }, []);
 
   const [selectedStreet, setSelectedStreet] = useState<string>("All");
 
@@ -135,8 +129,14 @@ export const PeakAnalysis = ({
       </div>
 
       {loading ? (
-        <div className="h-80 flex items-center justify-center text-slate-400">
-          Loading...
+        <div className="h-80 flex items-end justify-between px-4 pb-4 gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="w-full bg-[#0f1028] rounded-t-lg animate-pulse"
+              style={{ height: `${Math.random() * 60 + 20}%` }}
+            ></div>
+          ))}
         </div>
       ) : data.length === 0 ? (
         <div className="h-80 flex items-center justify-center text-slate-400">
@@ -144,11 +144,11 @@ export const PeakAnalysis = ({
         </div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" />
-              <YAxis
+          <SafeResponsiveContainer width="100%" height={300}>
+            <SafeBarChart data={chartData}>
+              <SafeCartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <SafeXAxis dataKey="name" stroke="#94a3b8" />
+              <SafeYAxis
                 stroke="#94a3b8"
                 label={{
                   value: "Speed (km/h)",
@@ -156,7 +156,8 @@ export const PeakAnalysis = ({
                   position: "insideLeft",
                 }}
               />
-              <Tooltip
+              <SafeTooltip
+                formatter={(value: number) => [`${value.toFixed(1)} km/h`]}
                 contentStyle={{
                   backgroundColor: "#0f172a",
                   border: "1px solid #334155",
@@ -164,31 +165,37 @@ export const PeakAnalysis = ({
                 }}
                 labelStyle={{ color: "#cbd5e1" }}
               />
-              <Legend />
-              <Bar dataKey="morning" fill="#f472b6" name="Morning Peak" />
-              <Bar dataKey="evening" fill="#fbbf24" name="Evening Peak" />
-              <Bar dataKey="offPeak" fill="#38bdf8" name="Off-Peak" />
-            </BarChart>
-          </ResponsiveContainer>
+              <SafeLegend />
+              <SafeBar dataKey="morning" fill="#f472b6" name="Morning Peak" />
+              <SafeBar dataKey="evening" fill="#fbbf24" name="Evening Peak" />
+              <SafeBar dataKey="offPeak" fill="#38bdf8" name="Off-Peak" />
+            </SafeBarChart>
+          </SafeResponsiveContainer>
 
           {selectedMetrics && (
             <div className="mt-4 grid grid-cols-3 gap-4 border-t border-[#334155] pt-4">
               <div className="text-center">
                 <div className="text-xs text-slate-400 mb-1">Morning Peak</div>
                 <div className="text-xl font-bold text-pink-400">
-                  {selectedMetrics.morning} km/h
+                  {typeof selectedMetrics.morning === "number"
+                    ? `${selectedMetrics.morning.toFixed(1)} km/h`
+                    : "N/A"}
                 </div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-400 mb-1">Evening Peak</div>
                 <div className="text-xl font-bold text-amber-400">
-                  {selectedMetrics.evening} km/h
+                  {typeof selectedMetrics.evening === "number"
+                    ? `${selectedMetrics.evening.toFixed(1)} km/h`
+                    : "N/A"}
                 </div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-400 mb-1">Off-Peak</div>
                 <div className="text-xl font-bold text-sky-400">
-                  {selectedMetrics.offPeak} km/h
+                  {typeof selectedMetrics.offPeak === "number"
+                    ? `${selectedMetrics.offPeak.toFixed(1)} km/h`
+                    : "N/A"}
                 </div>
               </div>
             </div>

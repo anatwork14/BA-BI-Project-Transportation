@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { supabase } from "../../lib/supabase";
 
 interface GreenRoute {
   street_name: string;
@@ -10,47 +9,38 @@ interface GreenRoute {
   long: number;
 }
 
-export const GreenRoutes = ({
-  date,
-  isPaused,
-}: {
-  date?: string;
-  isPaused?: boolean;
-}): JSX.Element => {
+export const GreenRoutes = (): JSX.Element => {
   const [routes, setRoutes] = useState<GreenRoute[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: apiData } = await api.getGreenRoutes(date);
+      const { data: apiData } = await api.getGreenRoutes();
 
       if (apiData && Array.isArray(apiData) && apiData.length > 0) {
-        setRoutes(apiData);
-      } else {
-        const { data: supabaseData } = await supabase
-          .from("green_routes")
-          .select("*")
-          .order("velocity", { ascending: false });
-
-        if (supabaseData) setRoutes(supabaseData);
+        const uniqueRoutesMap = new Map();
+        apiData.forEach((item: GreenRoute) => {
+          const key = `${item.street_name}-${item.hour}`;
+          if (!uniqueRoutesMap.has(key)) {
+            uniqueRoutesMap.set(key, item);
+          }
+        });
+        setRoutes(Array.from(uniqueRoutesMap.values()));
       }
       setLoading(false);
     };
 
     fetchData();
-    if (!isPaused) {
-      const interval = setInterval(fetchData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [date, isPaused]);
+    
+  }, []);
 
   const [filterText, setFilterText] = useState("");
   const [limit, setLimit] = useState(5);
 
   const filteredRoutes = routes
     .filter((route) =>
-      route.street_name.toLowerCase().includes(filterText.toLowerCase())
+      (route.street_name || "").toLowerCase().includes(filterText.toLowerCase())
     )
     .slice(0, limit);
 
